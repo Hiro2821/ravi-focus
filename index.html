@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tabi Focus — 旅する集中</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
+<style>
+  :root{
+    --paper:#EEF1F5;
+    --ink:#12151A;
+    --ink-soft:#5B6472;
+    --ink-faint:#9AA3B2;
+    --surface:#FFFFFF;
+    --surface-soft:#F7F8FA;
+    --line-local:#E8590C;
+    --line-shinkansen:#0B3D91;
+    --line-flight:#0A84C4;
+    --primary:#1B2537;
+    --hairline:#E1E5EB;
+    --sea:#DCE7F0;
+    --land:#ECEEE7;
+    --coast:#B7C3CE;
+    --radius-lg:26px;
+    --radius-md:18px;
+    --radius-sm:12px;
+    --shadow-card:0 10px 30px rgba(18,21,26,0.07);
+    --shadow-float:0 14px 40px rgba(18,21,26,0.18);
+    --accent: var(--primary);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    overflow:hidden;
+  }
+  .num{
+    font-family:ui-monospace,"SF Mono","Menlo","Consolas",monospace;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:0.02em;
+  }
+  #app{position:relative; width:100%; height:100vh; height:100dvh;}
+  .screen{
+    position:absolute; inset:0;
+    opacity:0; pointer-events:none;
+    transform:translateY(8px);
+    transition:opacity .35s ease, transform .35s ease;
+  }
+  .screen.active{opacity:1; pointer-events:auto; transform:translateY(0);}
+
+  /* ---------- HOME ---------- */
+  #screen-home{overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .home-wrap{max-width:560px; margin:0 auto; padding:28px 20px 60px;}
+  .home-header{margin-bottom:22px;}
+  .eyebrow{
+    font-size:12.5px; font-weight:600; color:var(--ink-faint);
+    letter-spacing:.14em; text-transform:uppercase; margin:0 0 6px;
+  }
+  .home-title{
+    font-size:29px; font-weight:800; margin:0 0 6px; letter-spacing:-0.01em;
+  }
+  .home-sub{font-size:14.5px; color:var(--ink-soft); margin:0; line-height:1.6;}
+
+  .search-card{
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-card);
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .field-row{position:relative; display:flex; flex-direction:column;}
+  .field{
+    display:flex; align-items:center; gap:12px;
+    padding:14px 4px;
+  }
+  .field + .field{border-top:1px solid var(--hairline);}
+  .field-dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--ink-faint); flex-shrink:0;
+  }
+  .field.to .field-dot{background:var(--primary); position:relative;}
+  .field.to .field-dot::before{
+    content:""; position:absolute; left:50%; top:-19px; transform:translateX(-50%);
+    width:1px; height:12px; background:var(--hairline);
+  }
+  .field-labels{display:flex; flex-direction:column; flex:1; min-width:0;}
+  .field-labels label{font-size:10.5px; color:var(--ink-faint); font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px;}
+  .field-labels input{
+    border:none; outline:none; background:none; font-size:16.5px; font-weight:600;
+    color:var(--ink); padding:0; font-family:inherit; width:100%;
+  }
+  .field-labels input::placeholder{color:var(--ink-faint); font-weight:500;}
+  .swap-btn{
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--hairline);
+    background:var(--surface-soft); display:flex; align-items:center; justify-content:center;
+    font-size:15px; color:var(--ink-soft); cursor:pointer;
+  }
+  .swap-btn:active{background:var(--hairline);}
+
+  .mode-tabs{display:flex; gap:8px; margin:16px 0;}
+  .mode-tab{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:12px 6px; border-radius:var(--radius-md); border:1.5px solid var(--hairline);
+    background:var(--surface); cursor:pointer; transition:.15s;
+  }
+  .mode-tab .icon{font-size:19px;}
+  .mode-tab .label{font-size:12px; font-weight:700; color:var(--ink-soft);}
+  .mode-tab.active{border-color:var(--mode-color); background:color-mix(in srgb, var(--mode-color) 8%, white);}
+  .mode-tab.active .label{color:var(--mode-color);}
+
+  .search-btn{
+    width:100%; padding:15px; border:none; border-radius:var(--radius-md);
+    background:var(--primary); color:#fff; font-size:15.5px; font-weight:700;
+    letter-spacing:.02em; cursor:pointer; margin-top:2px;
+  }
+  .search-btn:active{opacity:.85;}
+
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin:16px 2px 4px;}
+  .chip{
+    font-size:12.5px; font-weight:600; color:var(--ink-soft);
+    background:var(--surface); border:1px solid var(--hairline);
+    padding:8px 13px; border-radius:20px; cursor:pointer;
+  }
+  .chip:active{background:var(--surface-soft);}
+
+  .results-head{
+    margin:26px 2px 12px; font-size:12.5px; font-weight:700; color:var(--ink-faint);
+    letter-spacing:.1em; text-transform:uppercase;
+  }
+  .results-list{display:flex; flex-direction:column; gap:12px;}
+  .empty-state{
+    text-align:center; padding:34px 20px; color:var(--ink-faint); font-size:13.5px; line-height:1.7;
+  }
+
+  .route-card{
+    display:flex; background:var(--surface); border-radius:var(--radius-md);
+    box-shadow:var(--shadow-card); overflow:hidden;
+  }
+  .route-main{flex:1; padding:16px 14px; min-width:0;}
+  .route-line-badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+    color:#fff; background:var(--mode-color); padding:3px 9px; border-radius:20px; margin-bottom:9px;
+  }
+  .route-path{font-size:15.5px; font-weight:700; color:var(--ink); margin-bottom:3px;}
+  .route-meta{font-size:12.5px; color:var(--ink-soft);}
+  .route-stub{
+    width:88px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-left:1.5px dashed var(--hairline); padding:10px 6px; gap:8px;
+  }
+  .route-stub .dur{font-size:16px; font-weight:800; color:var(--ink); text-align:center; line-height:1.2;}
+  .route-stub .dur-label{font-size:9.5px; color:var(--ink-faint); font-weight:700; letter-spacing:.06em;}
+  .start-btn{
+    width:34px; height:34px; border-radius:50%; border:none; background:var(--mode-color);
+    color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .start-btn:active{opacity:.8;}
+
+  /* ---------- FOCUS ---------- */
+  #screen-focus{background:var(--sea);}
+  #map{position:absolute; inset:0; z-index:1; background:var(--sea); overflow:hidden;}
+  #map-svg{width:100%; height:100%; display:block; position:absolute; inset:0; opacity:1; transition:opacity .6s ease;}
+  #tile-map{position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .6s ease; background:var(--sea);}
+  #tile-map.tile-live{opacity:1;}
+  #map-svg.svg-retired{opacity:0;}
+  .city-dot{fill:var(--ink-faint);}
+  .city-label{
+    font-size:11px; font-weight:700; fill:var(--ink-soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+    paint-order:stroke; stroke:rgba(255,255,255,.85); stroke-width:3px; stroke-linejoin:round;
+  }
+  .tile-vehicle-rot{transition:transform .4s linear; transform-origin:center;}
+  .maplibregl-ctrl-attrib{font-size:9px !important; background:rgba(255,255,255,.7) !important;}
+  .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left{z-index:5;}
+  .focus-top{
+    position:absolute; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 16px 0;
+  }
+  .icon-btn{
+    width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,.92);
+    backdrop-filter:blur(8px); box-shadow:var(--shadow-card); display:flex; align-items:center; justify-content:center;
+    font-size:16px; color:var(--ink); cursor:pointer;
+  }
+  .route-pill{
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px); box-shadow:var(--shadow-card);
+    border-radius:30px; padding:9px 16px; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700;
+  }
+  .route-pill .dot{width:7px; height:7px; border-radius:50%; background:var(--mode-color);}
+  .route-pill .badge{
+    background:var(--mode-color); color:#fff; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:12px; margin-left:2px;
+  }
+
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; z-index:10;
+    background:var(--surface); border-radius:26px 26px 0 0; box-shadow:var(--shadow-float);
+    padding:10px 20px calc(20px + env(safe-area-inset-bottom));
+  }
+  .sheet-handle{width:38px; height:4px; border-radius:3px; background:var(--hairline); margin:0 auto 14px;}
+  .progress-track{height:4px; border-radius:3px; background:var(--hairline); overflow:hidden; margin-bottom:6px;}
+  .progress-fill{height:100%; background:var(--mode-color); border-radius:3px; width:0%; transition:width .4s linear;}
+  .progress-caption{
+    display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint); font-weight:600; margin-bottom:16px;
+  }
+  .progress-caption .num{color:var(--ink-soft);}
+
+  .station-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .station-col{display:flex; flex-direction:column; flex:1; min-width:0;}
+  .station-col.next{align-items:flex-end; text-align:right;}
+  .station-tag{font-size:10.5px; font-weight:700; color:var(--ink-faint); letter-spacing:.08em; text-transform:uppercase; margin-bottom:3px;}
+  .station-name{font-size:20px; font-weight:800; color:var(--ink); line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+  .station-arrow{font-size:15px; color:var(--ink-faint); flex-shrink:0; padding:0 10px;}
+
+  .stat-row{display:flex; gap:10px; margin-bottom:6px;}
+  .stat-box{
+    flex:1; background:var(--surface-soft); border-radius:14px; padding:11px 8px; text-align:center;
+  }
+  .stat-box .v{font-size:17px; font-weight:800; color:var(--ink);}
+  .stat-box .l{font-size:10px; color:var(--ink-faint); font-weight:700; margin-top:3px; letter-spacing:.03em;}
+
+  .eta-line{
+    text-align:center; font-size:12px; color:var(--ink-soft); margin-top:12px; padding-top:12px;
+    border-top:1px dashed var(--hairline);
+  }
+  .eta-line .num{font-weight:700; color:var(--ink);}
+
+  /* ---------- ARRIVAL ---------- */
+  #screen-arrival{
+    background:var(--primary); color:#fff; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:40px;
+  }
+  .arrival-emoji{font-size:56px; margin-bottom:18px;}
+  .arrival-title{font-size:23px; font-weight:800; margin-bottom:10px;}
+  .arrival-station{font-size:16px; font-weight:600; color:rgba(255,255,255,.85); margin-bottom:4px;}
+  .arrival-sub{font-size:13.5px; color:rgba(255,255,255,.6); margin-bottom:36px;}
+  .arrival-home-btn{
+    padding:14px 34px; border-radius:30px; border:1.5px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.08); color:#fff; font-size:14.5px; font-weight:700; cursor:pointer;
+  }
+  .arrival-home-btn:active{background:rgba(255,255,255,.18);}
+
+  @media (prefers-reduced-motion: reduce){
+    .screen, .progress-fill{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ HOME ============ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-wrap">
+      <div class="home-header">
+        <p class="eyebrow">Tabi Focus</p>
+        <h1 class="home-title">どこへ旅しますか？</h1>
+        <p class="home-sub">移動時間をそのまま集中時間に。実際の所要時間でタイマーが動きます。</p>
+      </div>
+
+      <div class="search-card">
+        <div class="field-row">
+          <div class="field from">
+            <div class="field-dot"></div>
+            <div class="field-labels">
+              <label id="from-label">出発駅</label>
+              <input id="from-input" type="text" placeholder="例：京都" autocomplete="off">
+            </div>
+          </div>
+          <div class="field to">
+            <div class="field-dot"></div>
+            <div class="field-labels">
+              <label id="to-label">到着駅</label>
+              <input id="to-input" type="text" placeholder="例：大阪" autocomplete="off">
+            </div>
+          </div>
+          <button class="swap-btn" id="swap-btn" title="入れ替え">⇅</button>
+        </div>
+
+        <div class="mode-tabs" id="mode-tabs">
+          <div class="mode-tab active" data-mode="train" style="--mode-color:#E8590C">
+            <div class="icon">🚃</div><div class="label">在来線</div>
+          </div>
+          <div class="mode-tab" data-mode="shinkansen" style="--mode-color:#0B3D91">
+            <div class="icon">🚄</div><div class="label">新幹線</div>
+          </div>
+          <div class="mode-tab" data-mode="flight" style="--mode-color:#0A84C4">
+            <div class="icon">✈️</div><div class="label">飛行機</div>
+          </div>
+        </div>
+
+        <button class="search-btn" id="search-btn">検索する</button>
+      </div>
+
+      <div class="chips" id="chips"></div>
+
+      <div class="results-head">検索結果</div>
+      <div class="results-list" id="results-list">
+        <div class="empty-state">出発地と到着地を入力して検索してください。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FOCUS ============ -->
+  <div id="screen-focus" class="screen">
+    <div id="map">
+      <div id="tile-map"></div>
+      <svg id="map-svg" preserveAspectRatio="xMidYMid meet">
+        <rect x="-2000000" y="-2000000" width="4000000" height="4000000" fill="var(--sea)"></rect>
+        <g id="land-layer" fill="var(--land)" stroke="var(--coast)"></g>
+        <g id="city-layer"></g>
+        <path id="route-full-line" fill="none" stroke="#B9C0CC" stroke-linejoin="round" stroke-linecap="round"></path>
+        <path id="route-traveled-line" fill="none" stroke-linejoin="round" stroke-linecap="round"></path>
+        <g id="station-dots"></g>
+        <g id="vehicle-marker">
+          <g id="vehicle-content"></g>
+        </g>
+      </svg>
+    </div>
+    <div class="focus-top">
+      <button class="icon-btn" id="focus-back">✕</button>
+      <div class="route-pill" id="route-pill">
+        <span class="dot"></span>
+        <span id="route-pill-text">— → —</span>
+        <span class="badge" id="route-pill-badge">—</span>
+      </div>
+      <div style="width:40px;"></div>
+    </div>
+
+    <div class="sheet" id="sheet-train">
+      <div class="sheet-handle"></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill-t"></div></div>
+      <div class="progress-caption">
+        <span>進捗率</span>
+        <span class="num" id="progress-pct-t">0%</span>
+      </div>
+      <div class="station-row">
+        <div class="station-col">
+          <span class="station-tag">現在</span>
+          <span class="station-name" id="cur-station">—</span>
+        </div>
+        <span class="station-arrow">→</span>
+        <div class="station-col next">
+          <span class="station-tag">次</span>
+          <span class="station-name" id="next-station">—</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="v num" id="remain-count">—</div><div class="l">残り駅数</div></div>
+        <div class="stat-box"><div class="v num" id="next-eta">—</div><div class="l">次駅まで</div></div>
+        <div class="stat-box"><div class="v num" id="arrive-eta">—</div><div class="l">到着まで</div></div>
+      </div>
+      <div class="eta-line">到着予定 <span class="num" id="arrive-clock-t">—:—</span></div>
+    </div>
+
+    <div class="sheet" id="sheet-flight" style="display:none;">
+      <div class="sheet-handle"></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill-f"></div></div>
+      <div class="progress-caption">
+        <span>進捗率</span>
+        <span class="num" id="progress-pct-f">0%</span>
+      </div>
+      <div class="station-row">
+        <div class="station-col">
+          <span class="station-tag">現在位置</span>
+          <span class="station-name" id="cur-position">—</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="v num" id="flight-total">—</div><div class="l">飛行時間</div></div>
+        <div class="stat-box"><div class="v num" id="flight-remain">—</div><div class="l">残り時間</div></div>
+      </div>
+      <div class="eta-line">到着予定 <span class="num" id="arrive-clock-f">—:—</span></div>
+    </div>
+  </div>
+
+  <!-- ============ ARRIVAL ============ -->
+  <div id="screen-arrival" class="screen">
+    <div class="arrival-emoji">🎉</div>
+    <div class="arrival-title">到着しました！</div>
+    <div class="arrival-station" id="arrival-station-text">大阪駅に到着</div>
+    <div class="arrival-sub">お疲れ様でした。</div>
+    <button class="arrival-home-btn" id="arrival-home-btn">ホームに戻る</button>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/pmtiles@4.4.1/dist/pmtiles.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* =====================================================
+     ROUTE DATA
+     To add a new route: push an object into ROUTES[mode]
+     with { id, from, to, line, type, durationMin, points }
+     points = ordered list of {name, lat, lng, t, stop} where t is
+     the cumulative minute offset from departure (last point's t must
+     equal durationMin) and stop marks a real stopping station (false
+     for shape-only vertices added purely to trace the real track curve
+     between stops — name is null for those). For flights, point names
+     for mid-route waypoints should read as a passing landmark, e.g.
+     "仙台上空".
+  ===================================================== */
+  const ROUTES = {
+    train: [
+      {
+        // Times below follow the real track shape (17 real stations + one
+        // curve vertex through the Tenno-zan gap), interpolated by actual
+        // distance travelled between this service's real stops — not a
+        // straight line — so the marker tracks the true rail alignment.
+        id:'kyoto-osaka-shinkaisoku', from:'京都', to:'大阪',
+        line:'JR京都線', type:'新快速', durationMin:29,
+        points:[
+          {name:'京都',     lat:34.9858, lng:135.7588, t:0,    stop:true},
+          {name:'西大路',   lat:34.9835, lng:135.7325, t:1.8,  stop:false},
+          {name:'桂川',     lat:34.9614, lng:135.7139, t:3.9,  stop:false},
+          {name:'向日町',   lat:34.9436, lng:135.6994, t:5.7,  stop:false},
+          {name:'長岡京',   lat:34.9269, lng:135.6889, t:7.2,  stop:false},
+          {name:null,      lat:34.9100, lng:135.6750, t:8.9,  stop:false},
+          {name:'山崎',     lat:34.8961, lng:135.6597, t:10.4, stop:false},
+          {name:'島本',     lat:34.8814, lng:135.6444, t:12.0, stop:false},
+          {name:'高槻',     lat:34.8506, lng:135.6183, t:15,   stop:true},
+          {name:'摂津富田', lat:34.8394, lng:135.6019, t:15.9, stop:false},
+          {name:'JR総持寺', lat:34.8264, lng:135.5794, t:17.2, stop:false},
+          {name:'茨木',     lat:34.8164, lng:135.5686, t:17.9, stop:false},
+          {name:'千里丘',   lat:34.7847, lng:135.5389, t:20.0, stop:false},
+          {name:'岸辺',     lat:34.7683, lng:135.5169, t:21.4, stop:false},
+          {name:'吹田',     lat:34.7597, lng:135.5153, t:21.8, stop:false},
+          {name:'東淀川',   lat:34.7286, lng:135.5089, t:23.5, stop:false},
+          {name:'新大阪',   lat:34.7338, lng:135.5001, t:24,   stop:true},
+          {name:'大阪',     lat:34.7024, lng:135.4959, t:29,   stop:true}
+        ]
+      },
+      {
+        id:'kyoto-osaka-kaisoku', from:'京都', to:'大阪',
+        line:'JR京都線', type:'快速', durationMin:40,
+        points:[
+          {name:'京都',     lat:34.9858, lng:135.7588, t:0,    stop:true},
+          {name:'西大路',   lat:34.9835, lng:135.7325, t:1.9,  stop:false},
+          {name:'桂川',     lat:34.9614, lng:135.7139, t:4.2,  stop:false},
+          {name:'向日町',   lat:34.9436, lng:135.6994, t:6.0,  stop:false},
+          {name:'長岡京',   lat:34.9269, lng:135.6889, t:7.6,  stop:false},
+          {name:null,      lat:34.9100, lng:135.6750, t:9.4,  stop:false},
+          {name:'山崎',     lat:34.8961, lng:135.6597, t:11,   stop:true},
+          {name:'島本',     lat:34.8814, lng:135.6444, t:13.4, stop:false},
+          {name:'高槻',     lat:34.8506, lng:135.6183, t:18,   stop:true},
+          {name:'摂津富田', lat:34.8394, lng:135.6019, t:20.0, stop:false},
+          {name:'JR総持寺', lat:34.8264, lng:135.5794, t:22.5, stop:false},
+          {name:'茨木',     lat:34.8164, lng:135.5686, t:24,   stop:true},
+          {name:'千里丘',   lat:34.7847, lng:135.5389, t:28.2, stop:false},
+          {name:'岸辺',     lat:34.7683, lng:135.5169, t:30.8, stop:false},
+          {name:'吹田',     lat:34.7597, lng:135.5153, t:31.7, stop:false},
+          {name:'東淀川',   lat:34.7286, lng:135.5089, t:35.1, stop:false},
+          {name:'新大阪',   lat:34.7338, lng:135.5001, t:36,   stop:true},
+          {name:'大阪',     lat:34.7024, lng:135.4959, t:40,   stop:true}
+        ]
+      },
+      {
+        id:'kyoto-osaka-futsu', from:'京都', to:'大阪',
+        line:'JR京都線', type:'普通', durationMin:51,
+        points:[
+          {name:'京都',     lat:34.9858, lng:135.7588, t:0,   stop:true},
+          {name:'西大路',   lat:34.9835, lng:135.7325, t:3,   stop:true},
+          {name:'桂川',     lat:34.9614, lng:135.7139, t:6,   stop:true},
+          {name:'向日町',   lat:34.9436, lng:135.6994, t:9,   stop:true},
+          {name:'長岡京',   lat:34.9269, lng:135.6889, t:12,  stop:true},
+          {name:null,      lat:34.9100, lng:135.6750, t:14.1, stop:false},
+          {name:'山崎',     lat:34.8961, lng:135.6597, t:16,  stop:true},
+          {name:'島本',     lat:34.8814, lng:135.6444, t:19,  stop:true},
+          {name:'高槻',     lat:34.8506, lng:135.6183, t:23,  stop:true},
+          {name:'摂津富田', lat:34.8394, lng:135.6019, t:27,  stop:true},
+          {name:'JR総持寺', lat:34.8264, lng:135.5794, t:30,  stop:true},
+          {name:'茨木',     lat:34.8164, lng:135.5686, t:33,  stop:true},
+          {name:'千里丘',   lat:34.7847, lng:135.5389, t:38,  stop:true},
+          {name:'岸辺',     lat:34.7683, lng:135.5169, t:41,  stop:true},
+          {name:'吹田',     lat:34.7597, lng:135.5153, t:44,  stop:true},
+          {name:'東淀川',   lat:34.7286, lng:135.5089, t:47,  stop:true},
+          {name:'新大阪',   lat:34.7338, lng:135.5001, t:49,  stop:true},
+          {name:'大阪',     lat:34.7024, lng:135.4959, t:51,  stop:true}
+        ]
+      }
+    ],
+    shinkansen: [
+      {
+        id:'tokyo-shinosaka-nozomi', from:'東京', to:'新大阪',
+        line:'東海道新幹線', type:'のぞみ', durationMin:135,
+        points:[
+          {name:'東京',   lat:35.6812, lng:139.7671, t:0,   stop:true},
+          {name:'新横浜', lat:35.5067, lng:139.6172, t:18,  stop:true},
+          {name:'名古屋', lat:35.1709, lng:136.8815, t:96,  stop:true},
+          {name:'京都',   lat:34.9858, lng:135.7588, t:123, stop:true},
+          {name:'新大阪', lat:34.7338, lng:135.5001, t:135, stop:true}
+        ]
+      }
+    ],
+    flight: [
+      {
+        id:'haneda-chitose', from:'羽田空港', to:'新千歳空港',
+        line:'航空便', type:'直行便', durationMin:95,
+        points:[
+          {name:'羽田空港',   lat:35.5494, lng:139.7798, t:0,  stop:true},
+          {name:'仙台上空',   lat:38.2682, lng:140.8694, t:35, stop:true},
+          {name:'函館上空',   lat:41.7687, lng:140.7288, t:65, stop:true},
+          {name:'新千歳空港', lat:42.7752, lng:141.6923, t:95, stop:true}
+        ]
+      }
+    ]
+  };
+
+  const MODE_COLOR = { train:'#E8590C', shinkansen:'#0B3D91', flight:'#0A84C4' };
+  const MODE_ICON  = { train:'🚆', shinkansen:'🚆', flight:'✈️' };
+  const MODE_LABEL = { train:'在来線', shinkansen:'新幹線', flight:'飛行機' };
+  const CHIP_EXAMPLES = [
+    {mode:'train', from:'京都', to:'大阪', label:'京都 → 大阪'},
+    {mode:'shinkansen', from:'東京', to:'新大阪', label:'東京 → 新大阪'},
+    {mode:'flight', from:'羽田', to:'新千歳', label:'羽田 → 新千歳'}
+  ];
+
+  /* =====================================================
+     SIMPLIFIED JAPAN COASTLINE (for map background context)
+     Hand-approximated from known geographic landmarks —
+     a stylized route-map illustration, not survey-grade GIS.
+     Format: [lng, lat] rings, one per landmass.
+  ===================================================== */
+  const COASTLINE = {
+    hokkaido: [
+      [140.73,41.77],[140.10,42.10],[140.05,42.65],[140.35,43.35],[141.35,43.35],
+      [141.65,44.35],[141.94,45.52],[142.65,45.40],[143.60,44.75],[144.60,44.15],
+      [145.30,44.35],[145.60,43.90],[145.82,43.38],[145.35,43.10],[144.60,42.95],
+      [143.85,42.65],[143.24,41.92],[142.35,42.35],[141.60,42.55],[141.10,42.35]
+    ],
+    honshu: [
+      [140.35,41.25],[140.74,40.83],[141.46,41.43],[141.95,40.55],[141.95,39.65],
+      [141.75,38.95],[141.50,38.27],[140.90,37.75],[140.75,36.95],[140.87,35.71],
+      [139.75,35.25],[139.87,34.90],[139.62,35.13],[139.10,34.90],[138.84,34.60],
+      [138.51,34.72],[138.23,34.60],[137.72,34.68],[137.02,34.60],[136.90,34.28],
+      [136.35,33.85],[135.77,33.44],[135.35,33.65],[135.17,34.15],[135.42,34.60],
+      [135.15,34.75],[134.60,34.50],[134.05,34.45],[133.55,34.48],[133.05,34.35],
+      [132.45,34.35],[132.05,34.05],[131.55,33.95],[130.94,33.95],[131.30,34.35],
+      [131.85,34.55],[132.62,35.44],[133.35,35.55],[134.20,35.55],[134.85,35.60],
+      [135.75,35.65],[136.35,36.75],[136.90,37.05],[137.32,37.45],[137.40,38.35],
+      [139.02,37.92],[139.85,38.90],[140.10,39.72],[140.05,40.65]
+    ],
+    shikoku: [
+      [134.05,34.34],[134.60,34.20],[134.18,33.25],[133.55,33.00],[132.97,32.72],
+      [132.75,33.30],[132.77,33.84],[133.20,34.10]
+    ],
+    kyushu: [
+      [130.97,33.94],[131.61,33.28],[131.42,31.91],[130.66,30.99],[130.40,31.35],
+      [130.20,31.90],[129.75,32.58],[129.87,32.75],[130.20,33.15],[130.42,33.59]
+    ]
+  };
+
+  /* Reference cities shown when they fall within the current view, for extra map detail/context */
+  const CITIES = [
+    {name:'東京', lng:139.6917, lat:35.6895},
+    {name:'大阪', lng:135.5023, lat:34.6937},
+    {name:'名古屋', lng:136.9066, lat:35.1815},
+    {name:'京都', lng:135.7681, lat:35.0116},
+    {name:'横浜', lng:139.6380, lat:35.4437},
+    {name:'神戸', lng:135.1955, lat:34.6901},
+    {name:'札幌', lng:141.3545, lat:43.0618},
+    {name:'仙台', lng:140.8694, lat:38.2682},
+    {name:'福岡', lng:130.4017, lat:33.5904},
+    {name:'新潟', lng:139.0364, lat:37.9161},
+    {name:'広島', lng:132.4553, lat:34.3853},
+    {name:'函館', lng:140.7288, lat:41.7687}
+  ];
+
+  /* =====================================================
+     MAP PROJECTION — equirectangular w/ cosine latitude
+     correction, centered on Japan. Same function is used
+     for the static coastline and the live vehicle position,
+     so everything is guaranteed to line up.
+  ===================================================== */
+  const LAT0 = 37;
+  const GEO_SCALE = 1000;
+  const COS_LAT0 = Math.cos(LAT0 * Math.PI / 180);
+  const KM_PER_DEG = 111.32;
+  const UNITS_PER_KM = GEO_SCALE / KM_PER_DEG;
+  function project(lng, lat){
+    return { x: lng * COS_LAT0 * GEO_SCALE, y: -lat * GEO_SCALE };
+  }
+  function segmentKm(a,b){
+    const dLat = (b.lat-a.lat) * KM_PER_DEG;
+    const dLng = (b.lng-a.lng) * KM_PER_DEG * Math.cos((a.lat+b.lat)/2 * Math.PI/180);
+    return Math.hypot(dLat, dLng);
+  }
+  // Average spacing between real *stops* (shape-only curve vertices don't count),
+  // used to size the tracking camera window.
+  function avgSegmentKm(route){
+    const stops = route.points.filter(p=>p.stop);
+    let total = 0;
+    for(let i=0;i<stops.length-1;i++) total += segmentKm(stops[i], stops[i+1]);
+    return total / Math.max(1, stops.length-1);
+  }
+  function pickTileZoom(avgKm){
+    if(avgKm < 2) return 17;
+    if(avgKm < 5) return 16;
+    if(avgKm < 12) return 15;
+    if(avgKm < 30) return 13;
+    if(avgKm < 80) return 11;
+    return 9;
+  }
+  function prevStop(points, idx){
+    for(let i=idx;i>=0;i--){ if(points[i].stop) return points[i]; }
+    return points[0];
+  }
+  function nextStop(points, idx){
+    for(let i=idx+1;i<points.length;i++){ if(points[i].stop) return points[i]; }
+    return points[points.length-1];
+  }
+  function remainingStopsCount(points, idx){
+    let c = 0;
+    for(let i=idx+1;i<points.length;i++){ if(points[i].stop) c++; }
+    return c;
+  }
+  function headingDeg(fromPt, toPt){
+    const a = project(fromPt.lng, fromPt.lat), b = project(toPt.lng, toPt.lat);
+    const dx = b.x-a.x, dy = b.y-a.y;
+    if(Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return 0;
+    return Math.atan2(dy,dx) * 180/Math.PI;
+  }
+  // True compass bearing (0=N, 90=E, clockwise) between two lat/lng points —
+  // matches MapLibre's `bearing` convention, used to rotate the real map so
+  // it always faces the direction of travel, like turn-by-turn navigation.
+  function compassBearing(fromPt, toPt){
+    const lat1 = fromPt.lat*Math.PI/180, lat2 = toPt.lat*Math.PI/180;
+    const dLon = (toPt.lng-fromPt.lng)*Math.PI/180;
+    const y = Math.sin(dLon)*Math.cos(lat2);
+    const x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+    if(Math.abs(y) < 1e-9 && Math.abs(x) < 1e-9) return 0;
+    return (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+  }
+  // A small hand-drawn side-profile train (rounded body + aerodynamic nose + windows),
+  // used instead of a generic emoji so it can also be rotated to face the direction
+  // of travel. Drawn pointing toward +x (rotation 0) in a local ~27x12 unit box.
+  function buildTrainIcon(color){
+    const g = document.createElementNS(SVGNS,'g');
+    const body = document.createElementNS(SVGNS,'rect');
+    body.setAttribute('x','-12'); body.setAttribute('y','-6.5');
+    body.setAttribute('width','20'); body.setAttribute('height','13');
+    body.setAttribute('rx','6.2');
+    body.setAttribute('fill', color); body.setAttribute('stroke','#ffffff'); body.setAttribute('stroke-width','1.6');
+    const nose = document.createElementNS(SVGNS,'path');
+    nose.setAttribute('d','M7.5,-6.5 C13,-6.5 17,-2.5 17.5,0 C17,2.5 13,6.5 7.5,6.5 Z');
+    nose.setAttribute('fill', color); nose.setAttribute('stroke','#ffffff'); nose.setAttribute('stroke-width','1.6'); nose.setAttribute('stroke-linejoin','round');
+    const pantograph = document.createElementNS(SVGNS,'path');
+    pantograph.setAttribute('d','M-2,-6.5 L-2,-9.5 L1,-9.5 L1,-6.5');
+    pantograph.setAttribute('fill','none'); pantograph.setAttribute('stroke', color); pantograph.setAttribute('stroke-width','1.4'); pantograph.setAttribute('stroke-linecap','round');
+    g.appendChild(body); g.appendChild(nose); g.appendChild(pantograph);
+    [[-9,-3.2],[-3,-3.2],[3,-3.2]].forEach(pos=>{
+      const w = document.createElementNS(SVGNS,'rect');
+      w.setAttribute('x', pos[0]); w.setAttribute('y', pos[1]);
+      w.setAttribute('width','4.2'); w.setAttribute('height','4.4'); w.setAttribute('rx','1.1');
+      w.setAttribute('fill','#eaf2ff'); w.setAttribute('opacity','0.95');
+      g.appendChild(w);
+    });
+    return g;
+  }
+  function ringPathD(ring){
+    return ring.map((p,i)=>{
+      const pr = project(p[0], p[1]);
+      return (i===0?'M':'L') + pr.x.toFixed(1) + ',' + pr.y.toFixed(1);
+    }).join(' ') + ' Z';
+  }
+  // Smooth closed ring through all points using Catmull-Rom -> cubic Bezier conversion,
+  // so the hand-plotted coastline reads as a natural curve rather than a low-poly outline.
+  function smoothRingPathD(ring){
+    const pts = ring.map(p => project(p[0], p[1]));
+    const n = pts.length;
+    if(n < 3) return ringPathD(ring);
+    let d = 'M'+pts[0].x.toFixed(1)+','+pts[0].y.toFixed(1)+' ';
+    for(let i=0;i<n;i++){
+      const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n], p3 = pts[(i+2)%n];
+      const c1x = p1.x + (p2.x-p0.x)/6, c1y = p1.y + (p2.y-p0.y)/6;
+      const c2x = p2.x - (p3.x-p1.x)/6, c2y = p2.y - (p3.y-p1.y)/6;
+      d += 'C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1)+' ';
+    }
+    return d + 'Z';
+  }
+  function lineD(points){
+    return points.map((p,i)=>{
+      const pr = project(p.lng, p.lat);
+      return (i===0?'M':'L') + pr.x.toFixed(1) + ',' + pr.y.toFixed(1);
+    }).join(' ');
+  }
+
+  let currentMode = 'train';
+  let session = null;   // active focus session state
+  let tickTimer = null;
+  let mapScale = 1;     // map units per screen pixel, recomputed per session
+
+  // Optional real-map layer (MapLibre GL + self-hosted PMTiles vector tiles,
+  // downloaded and placed in this repo — see map-data/README). This is tried on
+  // every session start; the hand-drawn SVG map (above) is the guaranteed
+  // fallback and stays visible unless the real tiles are confirmed loading.
+  const PMTILES_URL = 'map-data/japan.pmtiles';
+  const PMTILES_STYLE_URL = 'map-data/japan-style.json';
+  let tileMap = null;
+  let tileLayerAdded = false;
+  let tileModeActive = false;
+  let tileAttemptToken = 0;
+  let tileVehicleMarker = null;
+  let pmtilesProtocolReady = false;
+
+  /* ---------------- helpers ---------------- */
+  function formatDuration(min){
+    min = Math.round(min);
+    if(min < 60) return min + '分';
+    const h = Math.floor(min/60), m = min%60;
+    return m === 0 ? h+'時間' : h+'時間'+m+'分';
+  }
+  function formatClock(date){
+    const h = String(date.getHours()).padStart(2,'0');
+    const m = String(date.getMinutes()).padStart(2,'0');
+    return h+':'+m;
+  }
+  function matchStr(name, q){
+    if(!q) return true;
+    return name.indexOf(q.trim()) !== -1;
+  }
+  function reverseRoute(r){
+    const pts = r.points.slice().reverse().map(p => ({name:p.name, lat:p.lat, lng:p.lng, t:r.durationMin - p.t, stop:p.stop}));
+    return Object.assign({}, r, {id:r.id+'-rev', from:r.to, to:r.from, points:pts});
+  }
+  function findRoutes(mode, fromQ, toQ){
+    const list = ROUTES[mode] || [];
+    const out = [];
+    list.forEach(r => {
+      if(matchStr(r.from, fromQ) && matchStr(r.to, toQ)){
+        out.push(r);
+      } else if(fromQ && toQ && matchStr(r.to, fromQ) && matchStr(r.from, toQ)){
+        out.push(reverseRoute(r));
+      }
+    });
+    return out;
+  }
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function locate(points, elapsedMin){
+    if(elapsedMin <= points[0].t) return {idx:0, frac:0};
+    for(let i=0;i<points.length-1;i++){
+      if(elapsedMin >= points[i].t && elapsedMin <= points[i+1].t){
+        const span = points[i+1].t - points[i].t;
+        const frac = span > 0 ? (elapsedMin - points[i].t)/span : 1;
+        return {idx:i, frac};
+      }
+    }
+    return {idx:points.length-2, frac:1};
+  }
+
+  /* ---------------- static coastline + city render (once) ---------------- */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const landLayer = document.getElementById('land-layer');
+  Object.keys(COASTLINE).forEach(key=>{
+    const path = document.createElementNS(SVGNS,'path');
+    path.setAttribute('d', smoothRingPathD(COASTLINE[key]));
+    landLayer.appendChild(path);
+  });
+  const cityLayer = document.getElementById('city-layer');
+  const cityElements = [];
+  CITIES.forEach(c=>{
+    const pr = project(c.lng, c.lat);
+    const g = document.createElementNS(SVGNS,'g');
+    const dot = document.createElementNS(SVGNS,'circle');
+    dot.setAttribute('class','city-dot');
+    dot.setAttribute('cx', pr.x.toFixed(1));
+    dot.setAttribute('cy', pr.y.toFixed(1));
+    const label = document.createElementNS(SVGNS,'text');
+    label.setAttribute('class','city-label');
+    label.setAttribute('y', pr.y.toFixed(1));
+    label.textContent = c.name;
+    g.appendChild(dot); g.appendChild(label);
+    cityLayer.appendChild(g);
+    cityElements.push({dot, label, x:pr.x, y:pr.y});
+  });
+  // Called once per session (after mapScale is known) so dots/labels stay a
+  // constant, legible size in screen pixels no matter how far the view is zoomed.
+  function rescaleCities(scale){
+    cityElements.forEach(ce=>{
+      ce.dot.setAttribute('r', (3*scale).toFixed(2));
+      ce.label.setAttribute('x', (ce.x + 9*scale).toFixed(1));
+      ce.label.setAttribute('y', (ce.y + 3.5*scale).toFixed(1));
+      ce.label.style.fontSize = (11*scale).toFixed(2)+'px';
+      ce.label.style.strokeWidth = (3*scale).toFixed(2)+'px';
+    });
+  }
+
+  /* ---------------- home screen ---------------- */
+  const fromInput = document.getElementById('from-input');
+  const toInput = document.getElementById('to-input');
+  const fromLabel = document.getElementById('from-label');
+  const toLabel = document.getElementById('to-label');
+  const resultsList = document.getElementById('results-list');
+  const chipsEl = document.getElementById('chips');
+
+  function setMode(mode){
+    currentMode = mode;
+    document.querySelectorAll('.mode-tab').forEach(el=>{
+      el.classList.toggle('active', el.dataset.mode === mode);
+    });
+    const isFlight = mode === 'flight';
+    fromLabel.textContent = isFlight ? '出発空港' : '出発駅';
+    toLabel.textContent = isFlight ? '到着空港' : '到着駅';
+    fromInput.placeholder = isFlight ? '例：羽田' : '例：京都';
+    toInput.placeholder = isFlight ? '例：新千歳' : '例：大阪';
+  }
+  document.getElementById('mode-tabs').addEventListener('click', e=>{
+    const tab = e.target.closest('.mode-tab');
+    if(tab) setMode(tab.dataset.mode);
+  });
+  document.getElementById('swap-btn').addEventListener('click', ()=>{
+    const tmp = fromInput.value; fromInput.value = toInput.value; toInput.value = tmp;
+  });
+
+  function renderChips(){
+    chipsEl.innerHTML = '';
+    CHIP_EXAMPLES.forEach(c=>{
+      const el = document.createElement('div');
+      el.className = 'chip';
+      el.textContent = c.label;
+      el.addEventListener('click', ()=>{
+        setMode(c.mode);
+        fromInput.value = c.from;
+        toInput.value = c.to;
+        runSearch();
+      });
+      chipsEl.appendChild(el);
+    });
+  }
+
+  function renderResults(routes){
+    resultsList.innerHTML = '';
+    if(routes.length === 0){
+      const div = document.createElement('div');
+      div.className = 'empty-state';
+      div.textContent = '該当する路線が見つかりませんでした。下の例からお試しください。';
+      resultsList.appendChild(div);
+      return;
+    }
+    routes.forEach(r=>{
+      const color = MODE_COLOR[currentMode];
+      const stopsInfo = r.points.filter(p=>p.stop).length + '駅・' + MODE_LABEL[currentMode];
+      const card = document.createElement('div');
+      card.className = 'route-card';
+      card.style.setProperty('--mode-color', color);
+      card.innerHTML =
+        '<div class="route-main">' +
+          '<span class="route-line-badge">' + r.line + ' ' + r.type + '</span>' +
+          '<div class="route-path">' + r.from + ' → ' + r.to + '</div>' +
+          '<div class="route-meta">' + stopsInfo + '</div>' +
+        '</div>' +
+        '<div class="route-stub">' +
+          '<div class="dur num">' + formatDuration(r.durationMin) + '</div>' +
+          '<div class="dur-label">SCHEDULE</div>' +
+          '<button class="start-btn">▶</button>' +
+        '</div>';
+      card.querySelector('.start-btn').addEventListener('click', ()=> startSession(r, currentMode));
+      resultsList.appendChild(card);
+    });
+  }
+
+  function runSearch(){
+    const routes = findRoutes(currentMode, fromInput.value, toInput.value);
+    renderResults(routes);
+  }
+  document.getElementById('search-btn').addEventListener('click', runSearch);
+  [fromInput, toInput].forEach(inp=>{
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+  });
+
+  renderChips();
+
+  /* ---------------- screen switching ---------------- */
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  /* ---------------- focus session ---------------- */
+  const routePillText = document.getElementById('route-pill-text');
+  const routePillBadge = document.getElementById('route-pill-badge');
+  const routePill = document.getElementById('route-pill');
+  const sheetTrain = document.getElementById('sheet-train');
+  const sheetFlight = document.getElementById('sheet-flight');
+  const mapSvg = document.getElementById('map-svg');
+  const fullLineEl = document.getElementById('route-full-line');
+  const traveledLineEl = document.getElementById('route-traveled-line');
+  const stationDotsEl = document.getElementById('station-dots');
+  const vehicleMarker = document.getElementById('vehicle-marker');
+  const vehicleContent = document.getElementById('vehicle-content');
+  let vehicleIconScale = 1;
+  let trackVbW = 0, trackVbH = 0;
+
+  function tileTrainIconHtml(color){
+    return '<div class="tile-vehicle-rot" style="width:34px;height:34px;">' +
+      '<svg width="34" height="34" viewBox="-17 -17 34 34" style="filter:drop-shadow(0 2px 5px rgba(0,0,0,.4));">' +
+      '<rect x="-12" y="-6.5" width="20" height="13" rx="6.2" fill="'+color+'" stroke="#fff" stroke-width="1.6"/>' +
+      '<path d="M7.5,-6.5 C13,-6.5 17,-2.5 17.5,0 C17,2.5 13,6.5 7.5,6.5 Z" fill="'+color+'" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<rect x="-9" y="-3.2" width="4.2" height="4.4" rx="1.1" fill="#eaf2ff"/>' +
+      '<rect x="-3" y="-3.2" width="4.2" height="4.4" rx="1.1" fill="#eaf2ff"/>' +
+      '<rect x="3" y="-3.2" width="4.2" height="4.4" rx="1.1" fill="#eaf2ff"/>' +
+      '</svg></div>';
+  }
+
+  // Adds/updates the route-line sources+layers and the vehicle marker on the
+  // MapLibre map. Safe to call again for a new session once the map exists.
+  function setupTileRoute(route, mode, color){
+    const lineCoords = route.points.map(p=>[p.lng, p.lat]);
+    const fullGeo = {type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:lineCoords}};
+    const traveledGeo = {type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:[lineCoords[0], lineCoords[0]]}};
+
+    if(tileMap.getSource('tile-route-full')){
+      tileMap.getSource('tile-route-full').setData(fullGeo);
+      tileMap.getSource('tile-route-traveled').setData(traveledGeo);
+    } else {
+      tileMap.addSource('tile-route-full', {type:'geojson', data:fullGeo});
+      tileMap.addSource('tile-route-traveled', {type:'geojson', data:traveledGeo});
+      tileMap.addLayer({
+        id:'tile-route-full-line', type:'line', source:'tile-route-full',
+        layout:{'line-cap':'round','line-join':'round'},
+        paint:{'line-color':'#ffffff','line-width':7,'line-opacity':0.9}
+      });
+      tileMap.addLayer({
+        id:'tile-route-traveled-line', type:'line', source:'tile-route-traveled',
+        layout:{'line-cap':'round','line-join':'round'},
+        paint:{'line-color':color,'line-width':4,'line-opacity':0.95}
+      });
+    }
+
+    if(tileVehicleMarker) tileVehicleMarker.remove();
+    const wrap = document.createElement('div');
+    wrap.innerHTML = mode === 'flight'
+      ? '<div style="font-size:22px; filter:drop-shadow(0 2px 5px rgba(0,0,0,.4));">'+MODE_ICON[mode]+'</div>'
+      : tileTrainIconHtml(color);
+    // The map's own bearing is set to the direction of travel each tick (see
+    // tick()), so the marker just needs to point "up" in screen space — hence
+    // rotationAlignment:'viewport' with a fixed -90° offset to turn the icon
+    // (drawn pointing right) into one pointing up.
+    tileVehicleMarker = new maplibregl.Marker({element:wrap.firstElementChild, rotationAlignment:'viewport'})
+      .setLngLat(lineCoords[0])
+      .setRotation(mode === 'flight' ? 0 : -90)
+      .addTo(tileMap);
+  }
+
+  // Attempts to show a real, detailed map — self-hosted PMTiles (OpenStreetMap
+  // data) rendered with MapLibre GL — with a tracking camera that follows and
+  // rotates with the vehicle, like a navigation app. This only works once
+  // map-data/japan.pmtiles + map-data/japan-style.json exist in this repo
+  // (download from a PMTiles provider and place them there — see map-data/README).
+  // If they aren't found within a short window, the hand-drawn SVG map (already
+  // showing, and already tracking) is simply left in place — no error.
+  function debugLog(msg){
+    let el = document.getElementById('tile-debug');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'tile-debug';
+      el.style.cssText = 'position:absolute;top:66px;left:8px;right:8px;z-index:50;'+
+        'background:rgba(0,0,0,.8);color:#7CFC7C;font-size:10.5px;font-family:monospace;'+
+        'padding:8px 10px;border-radius:10px;max-height:140px;overflow:auto;white-space:pre-wrap;';
+      document.getElementById('screen-focus').appendChild(el);
+    }
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function tryLoadTiles(route, mode, color){
+    if(typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined'){
+      debugLog('NG: maplibregl/pmtiles not loaded');
+      return;
+    }
+    if(tileLayerAdded && !tileModeActive){ debugLog('skip: already failed once'); return; }
+
+    tileAttemptToken++;
+    const myToken = tileAttemptToken;
+    const tileMapEl = document.getElementById('tile-map');
+    const zoom = pickTileZoom(avgSegmentKm(route));
+    const bearing = mode === 'flight' ? 0 : compassBearing(route.points[0], nextStop(route.points, 0));
+    const startLngLat = [route.points[0].lng, route.points[0].lat];
+    debugLog('start: style='+PMTILES_STYLE_URL+' zoom='+zoom);
+
+    if(!pmtilesProtocolReady){
+      const protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol('pmtiles', protocol.tile);
+      pmtilesProtocolReady = true;
+      debugLog('protocol registered');
+    }
+
+    if(!tileMap){
+      tileLayerAdded = true;
+      let gotLoad = false;
+      try{
+        tileMap = new maplibregl.Map({
+          container: tileMapEl,
+          style: PMTILES_STYLE_URL,
+          center: startLngLat,
+          zoom: zoom,
+          bearing: bearing,
+          attributionControl: {compact:true}
+        });
+        debugLog('map created');
+      } catch(e){ debugLog('EXCEPTION: '+e.message); tileModeActive = false; return; }
+      tileMap.on('error', (e)=>{
+        const m = (e && e.error && e.error.message) ? e.error.message : JSON.stringify(e).slice(0,200);
+        debugLog('error event: '+m);
+      });
+      tileMap.on('load', ()=>{
+        gotLoad = true;
+        tileModeActive = true;
+        debugLog('LOAD OK — switching to real map');
+        setupTileRoute(route, mode, color);
+        tileMapEl.classList.add('tile-live');
+        mapSvg.classList.add('svg-retired');
+        setTimeout(()=>{ if(tileMap) tileMap.resize(); }, 30);
+      });
+      setTimeout(()=>{
+        if(myToken !== tileAttemptToken) return;
+        debugLog('timeout reached, gotLoad='+gotLoad);
+        if(!gotLoad) tileModeActive = false; // stays on the SVG fallback
+      }, 3000);
+    } else if(tileModeActive){
+      tileMap.jumpTo({center:startLngLat, zoom:zoom, bearing:bearing});
+      setupTileRoute(route, mode, color);
+      tileMapEl.classList.add('tile-live');
+      mapSvg.classList.add('svg-retired');
+      setTimeout(()=>{ if(tileMap) tileMap.resize(); }, 30);
+    }
+  }
+
+  function startSession(route, mode){
+    const color = MODE_COLOR[mode];
+    document.documentElement.style.setProperty('--accent', color);
+
+    routePill.querySelector('.dot').style.background = color;
+    routePillText.textContent = route.from + ' → ' + route.to;
+    routePillBadge.textContent = route.type;
+    routePillBadge.style.background = color;
+
+    sheetTrain.style.display = (mode === 'flight') ? 'none' : 'block';
+    sheetFlight.style.display = (mode === 'flight') ? 'block' : 'none';
+
+    session = {
+      route, mode, start: Date.now(),
+      totalMs: route.durationMin * 60000,
+      color
+    };
+
+    showScreen('screen-focus');
+
+    setTimeout(()=>{
+      // --- tracking camera window: sized from this route's average stop spacing,
+      //     so express trains get a wider view and local trains a tighter one ---
+      const avgKm = avgSegmentKm(route);
+      const halfWidthKm = Math.min(200, Math.max(0.5, avgKm * 0.9));
+      const rect = mapSvg.getBoundingClientRect();
+      const aspect = Math.max(0.4, rect.width / Math.max(1, rect.height));
+      trackVbW = halfWidthKm * 2 * UNITS_PER_KM;
+      trackVbH = trackVbW / aspect;
+      mapScale = trackVbW / Math.max(1, rect.width);
+
+      fullLineEl.setAttribute('d', lineD(route.points));
+      fullLineEl.setAttribute('stroke-width', (4*mapScale).toFixed(2));
+      traveledLineEl.setAttribute('stroke', color);
+      traveledLineEl.setAttribute('stroke-width', (5.5*mapScale).toFixed(2));
+      const startPr = project(route.points[0].lng, route.points[0].lat);
+      traveledLineEl.setAttribute('d', 'M'+startPr.x.toFixed(1)+','+startPr.y.toFixed(1));
+
+      landLayer.setAttribute('stroke-width', (1.3*mapScale).toFixed(2));
+      rescaleCities(mapScale);
+
+      stationDotsEl.innerHTML = '';
+      if(mode !== 'flight'){
+        route.points.filter(p=>p.stop).forEach(p=>{
+          const pr = project(p.lng, p.lat);
+          const c = document.createElementNS(SVGNS,'circle');
+          c.setAttribute('cx', pr.x.toFixed(1));
+          c.setAttribute('cy', pr.y.toFixed(1));
+          c.setAttribute('r', (3.2*mapScale).toFixed(2));
+          c.setAttribute('fill', '#ffffff');
+          c.setAttribute('stroke', color);
+          c.setAttribute('stroke-width', (1.6*mapScale).toFixed(2));
+          stationDotsEl.appendChild(c);
+        });
+      }
+
+      // --- vehicle icon: a realistic rotating train for train/shinkansen, the
+      //     plane emoji (unrotated) for flights ---
+      while(vehicleContent.firstChild) vehicleContent.removeChild(vehicleContent.firstChild);
+      if(mode === 'flight'){
+        const halo = document.createElementNS(SVGNS,'circle');
+        halo.setAttribute('r', (15*mapScale).toFixed(2));
+        halo.setAttribute('fill', '#ffffff');
+        const txt = document.createElementNS(SVGNS,'text');
+        txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','central');
+        txt.setAttribute('font-size', (18*mapScale).toFixed(2));
+        txt.setAttribute('y', (0.5*mapScale).toFixed(2));
+        txt.textContent = MODE_ICON[mode];
+        vehicleContent.appendChild(halo); vehicleContent.appendChild(txt);
+        vehicleIconScale = mapScale;
+      } else {
+        vehicleContent.appendChild(buildTrainIcon(color));
+        vehicleIconScale = mapScale * 1.15;
+      }
+      vehicleMarker.setAttribute('transform', 'translate('+startPr.x.toFixed(1)+','+startPr.y.toFixed(1)+')');
+
+      mapSvg.setAttribute('viewBox', (startPr.x-trackVbW/2)+' '+(startPr.y-trackVbH/2)+' '+trackVbW+' '+trackVbH);
+
+      tryLoadTiles(route, mode, color);
+    }, 60);
+
+    if(tickTimer) clearInterval(tickTimer);
+    tickTimer = setInterval(tick, 500);
+    tick();
+  }
+
+  function tick(){
+    if(!session) return;
+    // TEMP DEBUG: journey runs 10x faster for testing. Set to 1 to restore real-time speed.
+    const DEBUG_SPEED_MULTIPLIER = 10;
+    const elapsedMs = (Date.now() - session.start) * DEBUG_SPEED_MULTIPLIER;
+    const elapsedMin = elapsedMs / 60000;
+    const route = session.route;
+
+    if(elapsedMin >= route.durationMin){
+      finishSession();
+      return;
+    }
+
+    const loc = locate(route.points, elapsedMin);
+    const p0 = route.points[loc.idx], p1 = route.points[loc.idx+1] || p0;
+    const lat = lerp(p0.lat, p1.lat, loc.frac);
+    const lng = lerp(p0.lng, p1.lng, loc.frac);
+    const pr = project(lng, lat);
+    const heading = headingDeg(p0, p1);
+
+    if(session.mode === 'flight'){
+      vehicleMarker.setAttribute('transform', 'translate('+pr.x.toFixed(1)+','+pr.y.toFixed(1)+')');
+    } else {
+      vehicleMarker.setAttribute('transform',
+        'translate('+pr.x.toFixed(1)+','+pr.y.toFixed(1)+') rotate('+heading.toFixed(1)+') scale('+vehicleIconScale.toFixed(3)+')');
+    }
+
+    // tracking camera: recenter the visible window on the current position
+    mapSvg.setAttribute('viewBox', (pr.x-trackVbW/2)+' '+(pr.y-trackVbH/2)+' '+trackVbW+' '+trackVbH);
+
+    let d = lineD(route.points.slice(0, loc.idx+1));
+    d += ' L'+pr.x.toFixed(1)+','+pr.y.toFixed(1);
+    traveledLineEl.setAttribute('d', d);
+
+    if(tileModeActive && tileVehicleMarker){
+      tileVehicleMarker.setLngLat([lng,lat]);
+      const traveled = route.points.slice(0, loc.idx+1).map(p=>[p.lng,p.lat]);
+      traveled.push([lng,lat]);
+      const src = tileMap.getSource('tile-route-traveled');
+      if(src) src.setData({type:'Feature', properties:{}, geometry:{type:'LineString', coordinates:traveled}});
+
+      const easeOpts = {center:[lng,lat], duration:450, easing:t=>t};
+      if(session.mode !== 'flight') easeOpts.bearing = compassBearing(p0, p1);
+      tileMap.easeTo(easeOpts);
+    }
+
+    const progressPct = Math.min(100, Math.round((elapsedMin/route.durationMin)*100));
+    const remainMin = Math.max(0, Math.ceil(route.durationMin - elapsedMin));
+    const arrivalClock = formatClock(new Date(session.start + session.totalMs));
+
+    if(session.mode === 'flight'){
+      const nextEtaMin = Math.max(0, Math.ceil(p1.t - elapsedMin));
+      document.getElementById('progress-fill-f').style.width = progressPct+'%';
+      document.getElementById('progress-pct-f').textContent = progressPct+'%';
+      document.getElementById('cur-position').textContent = (loc.frac >= 1 ? p1.name : p0.name);
+      document.getElementById('flight-total').textContent = formatDuration(route.durationMin);
+      document.getElementById('flight-remain').textContent = formatDuration(remainMin);
+      document.getElementById('arrive-clock-f').textContent = arrivalClock;
+    } else {
+      const curSt = prevStop(route.points, loc.idx);
+      const nxtSt = nextStop(route.points, loc.idx);
+      const nextEtaMin = Math.max(0, Math.ceil(nxtSt.t - elapsedMin));
+      const remainStations = remainingStopsCount(route.points, loc.idx);
+      document.getElementById('progress-fill-t').style.width = progressPct+'%';
+      document.getElementById('progress-pct-t').textContent = progressPct+'%';
+      document.getElementById('cur-station').textContent = curSt.name;
+      document.getElementById('next-station').textContent = nxtSt.name;
+      document.getElementById('remain-count').textContent = remainStations+'駅';
+      document.getElementById('next-eta').textContent = nextEtaMin+'分';
+      document.getElementById('arrive-eta').textContent = remainMin+'分';
+      document.getElementById('arrive-clock-t').textContent = arrivalClock;
+    }
+  }
+
+  function finishSession(){
+    if(tickTimer) clearInterval(tickTimer);
+    tickTimer = null;
+    const route = session.route;
+    const mode = session.mode;
+    const suffix = mode === 'flight' ? 'に到着' : '駅に到着';
+    document.getElementById('arrival-station-text').textContent = route.to + suffix;
+    session = null;
+    showScreen('screen-arrival');
+  }
+
+  document.getElementById('focus-back').addEventListener('click', ()=>{
+    if(tickTimer) clearInterval(tickTimer);
+    tickTimer = null;
+    session = null;
+    showScreen('screen-home');
+  });
+  document.getElementById('arrival-home-btn').addEventListener('click', ()=>{
+    showScreen('screen-home');
+  });
+
+})();
+</script>
+</body>
+</html>
