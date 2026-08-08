@@ -955,9 +955,26 @@
   // (download from a PMTiles provider and place them there — see map-data/README).
   // If they aren't found within a short window, the hand-drawn SVG map (already
   // showing, and already tracking) is simply left in place — no error.
+  function debugLog(msg){
+    let el = document.getElementById('tile-debug');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'tile-debug';
+      el.style.cssText = 'position:absolute;top:66px;left:8px;right:8px;z-index:50;'+
+        'background:rgba(0,0,0,.8);color:#7CFC7C;font-size:10.5px;font-family:monospace;'+
+        'padding:8px 10px;border-radius:10px;max-height:140px;overflow:auto;white-space:pre-wrap;';
+      document.getElementById('screen-focus').appendChild(el);
+    }
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+
   function tryLoadTiles(route, mode, color){
-    if(typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') return;
-    if(tileLayerAdded && !tileModeActive) return; // already tried once & unavailable
+    if(typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined'){
+      debugLog('NG: maplibregl/pmtiles not loaded');
+      return;
+    }
+    if(tileLayerAdded && !tileModeActive){ debugLog('skip: already failed once'); return; }
 
     tileAttemptToken++;
     const myToken = tileAttemptToken;
@@ -965,11 +982,13 @@
     const zoom = pickTileZoom(avgSegmentKm(route));
     const bearing = mode === 'flight' ? 0 : compassBearing(route.points[0], nextStop(route.points, 0));
     const startLngLat = [route.points[0].lng, route.points[0].lat];
+    debugLog('start: style='+PMTILES_STYLE_URL+' zoom='+zoom);
 
     if(!pmtilesProtocolReady){
       const protocol = new pmtiles.Protocol();
       maplibregl.addProtocol('pmtiles', protocol.tile);
       pmtilesProtocolReady = true;
+      debugLog('protocol registered');
     }
 
     if(!tileMap){
@@ -984,11 +1003,16 @@
           bearing: bearing,
           attributionControl: {compact:true}
         });
-      } catch(e){ tileModeActive = false; return; }
-      tileMap.on('error', ()=>{ /* swallow — resolved by the timeout below */ });
+        debugLog('map created');
+      } catch(e){ debugLog('EXCEPTION: '+e.message); tileModeActive = false; return; }
+      tileMap.on('error', (e)=>{
+        const m = (e && e.error && e.error.message) ? e.error.message : JSON.stringify(e).slice(0,200);
+        debugLog('error event: '+m);
+      });
       tileMap.on('load', ()=>{
         gotLoad = true;
         tileModeActive = true;
+        debugLog('LOAD OK — switching to real map');
         setupTileRoute(route, mode, color);
         tileMapEl.classList.add('tile-live');
         mapSvg.classList.add('svg-retired');
@@ -996,6 +1020,7 @@
       });
       setTimeout(()=>{
         if(myToken !== tileAttemptToken) return;
+        debugLog('timeout reached, gotLoad='+gotLoad);
         if(!gotLoad) tileModeActive = false; // stays on the SVG fallback
       }, 3000);
     } else if(tileModeActive){
