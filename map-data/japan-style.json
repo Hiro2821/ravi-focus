@@ -3,7 +3,7 @@
     "name": "Japan 2026/08/06",
     "sources": {
         "openmaptiles": {
-            "url": "pmtiles://./japan.pmtiles",
+            "url": "pmtiles://https://hiro2821.github.io/ravi-focus/map-data/japan.pmtiles",
             "type": "vector",
             "attribution": "Date 2026/08/06 / <a href=\"https://openstreetmap.org\">&copy OpenStreetMap contributors</a>"
         }
